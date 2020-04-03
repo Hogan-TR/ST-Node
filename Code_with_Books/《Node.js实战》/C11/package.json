@@ -1,0 +1,15 @@
+{
+  "name": "chapter_11",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "mississippi": "^4.0.0",
+    "yargs": "^15.3.0"
+  }
+}

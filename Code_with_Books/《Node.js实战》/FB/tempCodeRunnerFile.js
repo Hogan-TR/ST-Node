@@ -1,0 +1,1 @@
+    author = $('table tr td').eq(1).text()
