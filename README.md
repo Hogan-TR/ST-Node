@@ -1,2 +1,2 @@
 # ST-Node
-Start of Node learning
+Learning steps of Node.
