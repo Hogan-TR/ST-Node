@@ -12,11 +12,36 @@ class Block {
     constructor(data, previousHash) {
         this.data = data;
         this.previousHash = previousHash;
+        this.nonce = 1; // 用于一起计算hash的随机数
         this.hash = this.computeHash();
     }
 
     computeHash() {
-        return sha256(this.data + this.previousHash).toString();
+        return sha256(this.data + this.previousHash + this.nonce).toString();
+    }
+
+    // 根据difficulty决定需要的hash开头
+    getAnswer(difficulty) {
+        // 开头为n位0的hash
+        let answer = '';
+        for (let i = 0; i < difficulty; i++) {
+            answer += '0';
+        }
+        return answer;
+    }
+
+    // 计算符合区块链难度要求的hash
+    mine(difficulty) {
+        this.hash = this.computeHash();
+        while (true) {
+            if (this.hash.substring(0, difficulty) !== this.getAnswer(difficulty)) {
+                this.nonce += 1;
+                this.hash = this.computeHash();
+            } else {
+                break;
+            }
+        }
+        console.log('挖矿结束', this.hash);
     }
 }
 
@@ -24,6 +49,7 @@ class Block {
 class Chain {
     constructor() {
         this.chain = [this.bigBang()];
+        this.difficulty = 5; // 挖空难度 Proof of Work
     }
 
     // 生成祖先区块
@@ -43,7 +69,8 @@ class Chain {
         // 找到最近一个block的hash
         // 计算此block的最终hash
         newBlock.previousHash = this.getLatestBlock().hash;
-        newBlock.hash = newBlock.computeHash();
+        // newBlock.hash = newBlock.computeHash();
+        newBlock.mine(this.difficulty); // 挖矿
         this.chain.push(newBlock);
     }
 
@@ -85,11 +112,11 @@ const block1 = new Block('test1', '');
 trChain.addBlockToChain(block1);
 const block2 = new Block('test2', '');
 trChain.addBlockToChain(block2);
-console.log(trChain);
-console.log(trChain.validateChain());
+// console.log(trChain);
+// console.log('result of validate:', trChain.validateChain());
 
 // 尝试篡改区块链
-trChain.chain[1].data = 'error insert'; // 数据篡改 false
-trChain.chain[1].hash = trChain.chain[1].computeHash(); // 前后区块链接断裂 false
-console.log(trChain);
-console.log(trChain.validateChain());
+// trChain.chain[1].data = 'error insert'; // 数据篡改 false
+// trChain.chain[1].hash = trChain.chain[1].computeHash(); // 前后区块链接断裂 false
+// console.log(trChain);
+// console.log(trChain.validateChain());
