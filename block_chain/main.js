@@ -4,20 +4,31 @@
 
 const sha256 = require("crypto-js/sha256");
 
+// 转账
+class Transaction {
+    constructor(from, to, amount) {
+        this.from = from;
+        this.to = to;
+        this.amount = amount;
+    }
+}
+
 // 区块
 // data
 // previousHash
 // self的哈希值，决定于区块中的信息(data + previousHash)
 class Block {
-    constructor(data, previousHash) {
-        this.data = data;
+    constructor(transactions, previousHash) {
+        // data -> transactions(array) <-> need to stringify
+        this.transactions = transactions;
         this.previousHash = previousHash;
+        this.timestamp = Date.now(); // 块生成时间戳
         this.nonce = 1; // 用于一起计算hash的随机数
         this.hash = this.computeHash();
     }
 
     computeHash() {
-        return sha256(this.data + this.previousHash + this.nonce).toString();
+        return sha256(JSON.stringify(this.transactions) + this.previousHash + this.nonce + this.timestamp).toString();
     }
 
     // 根据difficulty决定需要的hash开头
@@ -49,6 +60,8 @@ class Block {
 class Chain {
     constructor() {
         this.chain = [this.bigBang()];
+        this.transactionPool = [];
+        this.minerReward = 50; // 挖矿奖励额
         this.difficulty = 5; // 挖空难度 Proof of Work
     }
 
@@ -63,7 +76,28 @@ class Chain {
         return this.chain[this.chain.length - 1];
     }
 
-    // 添加区块到区块链上
+    // 向Pool中添加转账记录
+    addTransaction(transaction) {
+        this.transactionPool.push(transaction);
+    }
+
+    mineTransactionPool(minerRewardAddress) {
+        // 创建奖励
+        const mineRewardTransaction = new Transaction('', minerRewardAddress, this.minerReward);
+        this.transactionPool.push(mineRewardTransaction);
+
+        // 挖矿
+        const newBlock = new Block(this.transactionPool, this.getLatestBlock().hash);
+        newBlock.mine(this.difficulty);
+
+        // 添加区块到区块链
+        // 清空 transactionPool
+        // 此处以简化挖矿过程，将Pool中所有transactions的手续费挖走
+        this.chain.push(newBlock);
+        this.transactionPool = [];
+    }
+
+    // 添加区块到区块链上 (外部)
     addBlockToChain(newBlock) {
         // data
         // 找到最近一个block的hash
@@ -105,13 +139,13 @@ class Chain {
     }
 }
 
-const trChain = new Chain();
+// const trChain = new Chain();
 // console.log(trChain.validateChain());
 
-const block1 = new Block('test1', '');
-trChain.addBlockToChain(block1);
-const block2 = new Block('test2', '');
-trChain.addBlockToChain(block2);
+// const block1 = new Block('test1', '');
+// trChain.addBlockToChain(block1);
+// const block2 = new Block('test2', '');
+// trChain.addBlockToChain(block2);
 // console.log(trChain);
 // console.log('result of validate:', trChain.validateChain());
 
@@ -120,3 +154,14 @@ trChain.addBlockToChain(block2);
 // trChain.chain[1].hash = trChain.chain[1].computeHash(); // 前后区块链接断裂 false
 // console.log(trChain);
 // console.log(trChain.validateChain());
+
+const trCoin = new Chain();
+// 两笔转账记录
+const t1 = new Transaction('Alex', 'Jose', 11);
+trCoin.addTransaction(t1);
+const t2 = new Transaction('Hobo', 'Go', 2);
+trCoin.addTransaction(t2);
+// console.log(trCoin);
+// 第三方挖矿者
+trCoin.mineTransactionPool('Hogan');
+console.log(trCoin.chain[1]);
