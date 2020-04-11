@@ -3,13 +3,36 @@
 // chain
 
 const sha256 = require("crypto-js/sha256");
+const ecLib = require("elliptic").ec;
+const ec = new ecLib("secp256k1"); // 椭圆曲线
 
 // 转账
 class Transaction {
   constructor(from, to, amount) {
+    // "from" and "to" are used as address in form of "publicKey"
     this.from = from;
     this.to = to;
     this.amount = amount;
+  }
+
+  computeHash() {
+    // 计算hash
+    return sha256(this.from + this.to + this.amount).toString();
+  }
+
+  sign(key) {
+    // sign with private key in keyPair
+    this.signature = key.sign(this.computeHash(), "base64").toDER("hex");
+  }
+
+  isValid() {
+    // 矿工奖励创建
+    if (this.from === "") {
+      return true;
+    }
+    // 公钥验证内容+签名
+    const keyObj = ec.keyFromPublic(this.from, "hex");
+    return keyObj.verify(this.computeHash(), this.signature);
   }
 }
 
@@ -48,6 +71,7 @@ class Block {
 
   // 计算符合区块链难度要求的hash
   mine(difficulty) {
+    this.validateBlockTransactions(); // trancactions 合法性认证
     this.hash = this.computeHash();
     while (true) {
       if (this.hash.substring(0, difficulty) !== this.getAnswer(difficulty)) {
@@ -58,6 +82,16 @@ class Block {
       }
     }
     console.log("挖矿结束", this.hash);
+  }
+
+  validateBlockTransactions() {
+    for (let transaction of this.transactions) {
+      if (!transaction.isValid()) {
+        console.log("Invalid transaction found in transactions");
+        return false;
+      }
+    }
+    return true;
   }
 }
 
@@ -83,6 +117,10 @@ class Chain {
 
   // 向Pool中添加转账记录
   addTransaction(transaction) {
+    if (!transaction.isValid()) {
+      throw Error("Invalid transaction");
+    }
+    console.log("Valid transaction");
     this.transactionPool.push(transaction);
   }
 
@@ -135,6 +173,10 @@ class Chain {
     // 从第二个区块开始验证
     for (let i = 1; i < this.chain.length; i++) {
       const blockToValidate = this.chain[i];
+      if (!blockToValidate.validateBlockTransactions()) {
+        console.log("Illega transaction");
+        return false;
+      }
       // 当前数据是否被篡改
       if (blockToValidate.hash !== blockToValidate.computeHash()) {
         console.log("数据篡改");
@@ -168,12 +210,26 @@ class Chain {
 // console.log(trChain.validateChain());
 
 const trCoin = new Chain();
+
+// 两对key
+// sender's key
+const keyPairSender = ec.genKeyPair();
+const privateKeySender = keyPairSender.getPrivate("hex");
+const publicKeySender = keyPairSender.getPublic("hex");
+// receiver's key
+const keyPairReceiver = ec.genKeyPair();
+const privateKeyReceiver = keyPairReceiver.getPrivate("hex");
+const publicKeyReceiver = keyPairReceiver.getPublic("hex");
+
 // 两笔转账记录
-const t1 = new Transaction("Alex", "Jose", 11);
+const t1 = new Transaction(publicKeySender, publicKeyReceiver, 11);
+t1.sign(keyPairSender);
 trCoin.addTransaction(t1);
-const t2 = new Transaction("Hobo", "Go", 2);
-trCoin.addTransaction(t2);
+
+// const t2 = new Transaction(publicKeyReceiver, publicKeySender, 2);
+// trCoin.addTransaction(t2);
 // console.log(trCoin);
 // 第三方挖矿者
-trCoin.mineTransactionPool("Hogan");
+trCoin.mineTransactionPool(publicKeyReceiver);
+console.log(trCoin);
 console.log(trCoin.chain[1]);
